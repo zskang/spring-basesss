@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+	<!-- 后续考虑bean生成放到java类中，以避免打包时漏掉资源文件。 同时，考虑系统配置型的bean单独处理，以便切换数据源或者其他实现类 -->
+
+	<context:property-placeholder location="classpath*:platform.properties" />
+
+
+	<context:component-scan base-package="com.joyintech.**"
+		use-default-filters="true">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+
+
+	<!-- 配置数据源 -->
+	<!-- 连接池配置 -->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		init-method="init" destroy-method="close">
+		<!--220.180.239.103:13521/orcl1 -->
+		<!-- 基本属性 driver、url、user、password oracle.jdbc.driver.OracleDriver 
+			jdbc:oracle:thin:@192.168.70.95:1521:orcl1 platform -->
+		<property name="driverClassName" value="${database.connection.driverClass}" />
+		<property name="url" value="${database.connection.url}" />
+		<property name="username" value="${database.connection.username}" />
+		<property name="password" value="${database.connection.password}" />
+		<!--配置初始化大小、最小、最大 -->
+		<property name="initialSize" value="${database.pool.initalsize}" />
+		<property name="minIdle" value="${database.pool.minidle}" />
+		<property name="maxActive" value="${database.pool.maxactive}" />
+		<!--配置获取连接等待超时的时间 -->
+		<property name="maxWait" value="${database.pool.maxWait}" />
+		<!--配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+		<property name="timeBetweenEvictionRunsMillis"
+			value="${database.pool.timeBetweenEvictionRunsMillis}" />
+		<!--配置一个连接在池中最小生存的时间，单位是毫秒 -->
+		<property name="minEvictableIdleTimeMillis"
+			value="${database.pool.minEvictableIdleTimeMillis}" />
+		<property name="validationQuery" value="SELECT 1 FROM DUAL" />
+		<property name="testWhileIdle" value="${database.pool.testWhileIdle}" />
+		<property name="testOnBorrow" value="${database.pool.testOnBorrow}" />
+		<property name="testOnReturn" value="${database.pool.testOnReturn}" />
+		<!--打开PSCache，并且指定每个连接上PSCache的大小 -->
+		<property name="poolPreparedStatements"
+			value="${database.pool.poolPreparedStatements}" />
+		<property name="maxPoolPreparedStatementPerConnectionSize"
+			value="${database.pool.maxPoolPreparedStatementPerConnectionSize}" />
+		<property name="removeAbandoned" value="${database.pool.removeAbandoned}"></property>
+		<!--配置监控统计拦截的filters -->
+		<property name="filters" value="log4j2" />   <!-- 取值为 stat  log4j  log4j2 此处修改为log4j2 -->
+		<property name="proxyFilters">
+			<list>
+				<ref bean="stat-filter" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">
+		<!-- 慢sql记录 -->
+		<property name="slowSqlMillis" value="${database.pool.slowSqlMillis}" />
+		<!-- 通过日志输出执行慢的sql -->
+		<property name="logSlowSql" value="${database.pool.logSlowSql}" />
+		<!-- sql合并配置 -->
+		<property name="mergeSql" value="${database.pool.mergeSql}" />
+	</bean>
+
+	<!-- mybatis配置 -->
+	<bean id="sqlSessionFactory" class="com.joyintech.mybatis.utils.JoyinSqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		
+		<!-- modi by 张中伟  at 2017-3-22 适应weblogic 配置。 -->
+		<property name="mapperLocations" >
+			<list>
+				<value>classpath*:sqlmapper/**/*.xml</value>
+        		
+			</list>
+		</property>
+	</bean>
+
+	<!-- 扫描mybatis映射接口类  不要扫描非指定的文件不然 定时任务、后期流程功能会报错 by daiweiwei -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.joyintech.**.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+	</bean>
+	<bean class="com.joyintech.utils.SpringContextUtil" lazy-init="false" />
+</beans>
